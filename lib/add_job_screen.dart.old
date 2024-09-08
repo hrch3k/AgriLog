@@ -1,0 +1,234 @@
+import 'package:flutter/material.dart';
+import 'database_helper.dart';
+import 'package:intl/intl.dart';
+
+class AddJobScreen extends StatefulWidget {
+  final int parcelId;
+  final String actionType; // New parameter to determine action
+
+  AddJobScreen({required this.parcelId, required this.actionType});
+
+  @override
+  _AddJobScreenState createState() => _AddJobScreenState();
+}
+
+class _AddJobScreenState extends State<AddJobScreen> {
+  final List<String> _jobTypes = [
+    'Plow',
+    'Tiller',
+    'Ripper',
+    'Disc',
+    "Mulčanje"
+  ];
+  String? _selectedJobType;
+  DateTime _selectedDateTime = DateTime.now();
+  final TextEditingController _cultureController =
+      TextEditingController(); // Controller for Culture input
+  final TextEditingController _quantityController =
+      TextEditingController(); // Controller for Quantity input
+  final TextEditingController _typeController =
+      TextEditingController(); // Controller for Culture input
+
+  Future<void> _selectDateTime(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+      );
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDateTime = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
+      }
+    }
+  }
+
+  Future<void> _saveJobDetails() async {
+    //if (_selectedJobType == null) {
+    //  ScaffoldMessenger.of(context).showSnackBar(
+    //    SnackBar(content: Text('Please select a job type.')),
+    //  );
+    //  return;
+    //}
+
+    final dbHelper = DatabaseHelper();
+    final db = await dbHelper.database;
+
+    // Insert into jobs table
+    int jobId = await db.insert('jobs', {
+      'parcel_id': widget.parcelId,
+      'detail_type': widget.actionType,
+      //== 'Priprava Zemlje'
+      //? 'Soil Preparation'
+      //: 'Sowing',
+      'job_type': widget.actionType != 'Priprava Zemlje' ||
+              widget.actionType == 'Škropljenje' ||
+              widget.actionType == 'Gnojenje'
+          ? (widget.actionType != 'Baliranje' && widget.actionType != 'Žetev'
+              ? _typeController.text
+              : widget.actionType)
+          : _selectedJobType,
+      'date_time': _selectedDateTime.toIso8601String(),
+    });
+
+    // Insert into job_details table with different logic based on actionType
+    await db.insert('job_details', {
+      'job_id': jobId,
+      'detail_type': widget.actionType,
+      'type': widget.actionType != 'Priprava Zemlje' ||
+              widget.actionType == 'Škropljenje' ||
+              widget.actionType == 'Gnojenje' ||
+              widget.actionType == 'Setev'
+          ? (widget.actionType != 'Baliranje' && widget.actionType != 'Žetev'
+              ? _typeController.text
+              : widget.actionType)
+          : _selectedJobType,
+      'culture': _cultureController.text,
+      'quantity': widget.actionType == 'Setev' ||
+              widget.actionType == 'Gnojenje' ||
+              widget.actionType == 'Škropljenje'
+          ? int.tryParse(_quantityController.text) ?? 0
+          : 0,
+      'bales_on_field': widget.actionType == 'Baliranje'
+          ? int.tryParse(_quantityController.text) ?? 0
+          : 0,
+      'date_time': _selectedDateTime.toIso8601String(),
+    });
+
+    // Navigate back or show a success message
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.actionType), // Display action type as title
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Example of dynamic input based on actionType
+            if (widget.actionType == 'Setev') ...[
+              TextFormField(
+                controller: _typeController, // Assign the controller
+                decoration: InputDecoration(labelText: 'Kultura'),
+              ),
+              TextFormField(
+                controller: _quantityController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Količina semena',
+                  hintText: 'kg/ha',
+                ),
+              ),
+              TextFormField(
+                //controller: _cultureController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Dodano gnojilo',
+                  hintText: 'NPK, Orea, KAN',
+                ),
+              ),
+              TextFormField(
+                //controller: _cultureController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Količina Gnojila',
+                  hintText: 'kg/ha',
+                ),
+              ),
+            ],
+            if (widget.actionType == 'Gnojenje') ...[
+              TextFormField(
+                controller: _typeController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Gnojilo',
+                  hintText: 'NPK, Orea, KAN',
+                ),
+              ),
+              TextFormField(
+                controller: _quantityController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Količina gnojila',
+                  hintText: 'kg/ha',
+                ),
+              ),
+            ],
+            if (widget.actionType == 'Baliranje') ...[
+              TextFormField(
+                controller: _quantityController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Št. Bal',
+                  hintText: 'kom',
+                ),
+              ),
+            ],
+
+            if (widget.actionType == 'Škropljenje') ...[
+              TextFormField(
+                controller: _typeController, // Assign the controller
+                decoration: InputDecoration(labelText: 'Tip Škropiva'),
+              ),
+              TextFormField(
+                controller: _quantityController, // Assign the controller
+                decoration: InputDecoration(
+                  labelText: 'Količina škropiva',
+                  hintText: 'L/L',
+                ),
+              ),
+            ],
+            SizedBox(height: 20),
+            if (widget.actionType == 'Priprava Zemlje') ...[
+              DropdownButtonFormField<String>(
+                value: _selectedJobType,
+                decoration: InputDecoration(labelText: 'Job Type'),
+                items: _jobTypes.map((String jobType) {
+                  return DropdownMenuItem<String>(
+                    value: jobType,
+                    child: Text(jobType),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedJobType = newValue;
+                  });
+                },
+              ),
+            ],
+            SizedBox(height: 20),
+            TextFormField(
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Date/Time',
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.calendar_today),
+                  onPressed: () => _selectDateTime(context),
+                ),
+              ),
+              controller: TextEditingController(
+                text: DateFormat('yyyy-MM-dd HH:mm').format(_selectedDateTime),
+              ),
+            ),
+            SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: _saveJobDetails,
+              child: Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,48 @@
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'database_helper.dart';
+
+class DataService {
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+
+  Future<void> fetchDataAndSaveToDatabase(int inputNumber) async {
+    try {
+      // Modify the URL if needed to pass the inputNumber
+      final response = await http.get(Uri.parse('http://10.0.2.2:5000/scrape/' +
+          inputNumber.toString())); // Example URL
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+
+        // Clear existing data in the database
+        await _dbHelper.deleteAllData();
+
+        // Save each item to the database
+        for (var item in data) {
+          Map<String, dynamic> dbData = {
+            'kmg_mid': item[inputNumber],
+            'gerk_pid': item['GERK_PID'],
+            'blok_id': item['BLOK_ID'],
+            'm2': item['M2'],
+            'domace_ime': item['DOMACE_IME'],
+          };
+          await _dbHelper.insertData(dbData);
+        }
+
+        print('Data saved to database successfully');
+      } else {
+        print('Failed to load data: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllData() async {
+    return await _dbHelper.getAllData();
+  }
+
+  Future<void> deleteAllData() async {
+    return await _dbHelper.deleteAllData();
+  }
+}

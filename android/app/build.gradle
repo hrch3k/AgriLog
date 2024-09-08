@@ -1,0 +1,54 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    // Add the Google services Gradle plugin
+    id 'com.google.gms.google-services'
+}
+
+android {
+    namespace = "com.example.scrape_gerk"
+    compileSdk = 34
+    // Set this to your desired compile SDK version, 33 is a common choice for modern apps
+    ndkVersion = "23.1.7779620" // Example NDK version, adjust according to your environment
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        applicationId = "com.example.scrape_gerk"
+        minSdkVersion = 21
+        // Set a minimum SDK version, typically 21 or higher for most modern Flutter apps
+        targetSdkVersion = 34 // Set this to your desired target SDK version
+        versionCode = 1 // Set this according to your app versioning scheme
+        versionName = "1.0" // Set this according to your app versioning scheme
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.debug
+        }
+    }
+
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    // Import the Firebase BoM (Bill of Materials)
+    implementation platform('com.google.firebase:firebase-bom:33.2.0')
+
+    // Add the Firebase SDK for Analytics or any other Firebase services you want to use
+    implementation 'com.google.firebase:firebase-analytics'
+
+    // Add other Firebase products as needed
+    // Check https://firebase.google.com/docs/android/setup#available-libraries for available libraries
+}

@@ -1,0 +1,20 @@
+1. Add option to delete a parcel and all of its jobs - Done
+2. Load last added kmg_mid at app start and all of its data - Done
+3. Add data export feature - Done
+4. Add sumarnik at the job history. (last month, last year, custom)
+5. Show fert type when exporting data and in job history
+6. Migrate to Firebase
+7. Change the path where to save the export .csv - Done
+8. Add cost record of the jobs, seeds, spray, fert etc
+9. Add Dark mode
+
+
+
+Ideas:
+1. Connect with Crop Insurance Services: Let users access insurance services to ensure their crops or fields are protected.
+2. Farm Equipment Management: Add an equipment management feature to track maintenance schedules, fuel costs, and usage.
+3. Connect with agriculture stores (to order repro material directly from the app and pick up at nearest store)
+4. Add aerial images of the fields (planet.com)
+5. Add weather report and realtime notifications
+6. Add Crop Rotation History: Track crop rotation for each field, showing previous crops to help with long-term planning.
+7. Add Crop-Specific Recommendations: Provide smart crop-specific recommendations based on field data (e.g., pest control, fertilizing suggestions).

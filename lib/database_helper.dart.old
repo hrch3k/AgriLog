@@ -1,0 +1,134 @@
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
+class DatabaseHelper {
+  static final DatabaseHelper _instance = DatabaseHelper._internal();
+  static Database? _database;
+
+  factory DatabaseHelper() {
+    return _instance;
+  }
+
+  DatabaseHelper._internal();
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    String path = join(await getDatabasesPath(), 'farming_data.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _onCreate,
+    );
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    // Create the unique_data table
+    await db.execute('''
+    CREATE TABLE kmg_mid  (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kmg_mid TEXT UNIQUE,
+      gerk_pid TEXT,
+      blok_id TEXT,
+      m2 TEXT,
+      domace_ime TEXT
+    )
+  ''');
+
+    // Create the jobs table
+    await db.execute('''
+    CREATE TABLE jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kmg_mid_id INTEGER,
+      job_type TEXT,
+      date_time DATETIME,
+      FOREIGN KEY(kmg_mid_id) REFERENCES unique_data(id)
+    )
+  ''');
+
+    // Create the soil_preparation table
+    await db.execute('''
+    CREATE TABLE soil_preparation (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      type TEXT,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+
+    // Create the sowing table
+    await db.execute('''
+    CREATE TABLE sowing (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      culture TEXT,
+      quantity REAL,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+
+    // Create the spray table
+    await db.execute('''
+    CREATE TABLE spray (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      type TEXT,
+      quantity_per_l REAL,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+
+    // Create the harvest table
+    await db.execute('''
+    CREATE TABLE harvest (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+
+    // Create the mulching table
+    await db.execute('''
+    CREATE TABLE mulching (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+
+    // Create the baling (Baliranje) table
+    await db.execute('''
+    CREATE TABLE baling (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER,
+      quantity REAL,
+      date_time DATETIME,
+      FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )
+  ''');
+  }
+
+  Future<int> insertData(Map<String, dynamic> data) async {
+    Database db = await database;
+    return await db.insert('unique_data', data);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllData() async {
+    Database db = await database;
+    return await db.query('unique_data');
+  }
+
+  Future<void> deleteAllData() async {
+    Database db = await database;
+    await db.delete('unique_data');
+  }
+}

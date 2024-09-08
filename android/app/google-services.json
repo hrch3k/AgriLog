@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "354715975070",
+    "project_id": "agrilog-e80f6",
+    "storage_bucket": "agrilog-e80f6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354715975070:android:3be48f661808d93e8bea8f",
+        "android_client_info": {
+          "package_name": "com.example.scrape_gerk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZf5t8-NvLLvZyGMtX02ft2Ful-RJ_aBU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
