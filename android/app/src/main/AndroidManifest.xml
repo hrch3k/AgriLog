@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.scrape_gerk">
+    package="com.agritex.agrilog">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -13,7 +13,7 @@
         tools:ignore="ScopedStorage" />
 
     <application
-        android:label="FarmerSi"
+        android:label="AgriLog"
         android:icon="@mipmap/ic_launcher"
         android:exported="true">
 

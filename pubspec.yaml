@@ -1,5 +1,5 @@
-name: FarmerSi
-description: "A new Flutter project."
+name: AgriLog
+description: "AgriLog is an app designed to help farmers manage parcels, track jobs, and monitor seed, fertilizer, and pesticide usage. It supports data export in CSV format and provides insights into farming activities."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 version: 1.1.0+1
-
+author: Andrej Jurkas duleml@gmail.com
 environment:
   sdk: ^3.5.0
 

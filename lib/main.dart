@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Farmer SI',
+      title: 'AgriLog',
       home: DataScreen(),
     );
   }
@@ -155,7 +155,7 @@ class _DataScreenState extends State<DataScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Farmer SI'),
+        title: Text('AgriLog'),
         actions: [
           PopupMenuButton<String>(
             onSelected: _onSelectedMenuOption,
