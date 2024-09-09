@@ -6,7 +6,8 @@
 6. Migrate to Firebase
 7. Change the path where to save the export .csv - Done
 8. Add cost record of the jobs, seeds, spray, fert etc
-9. Add Dark mode
+9. Add Dark mod
+10. Add search field to filter the fileds on the first screen to quickly find the field
 
 
 
