@@ -3,13 +3,14 @@
 3. Add data export feature - Done
 4. Add sumarnik at the job history. (last month, last year, custom)
 5. Show fert type when exporting data and in job history
-6. Migrate to Firebase
+6. Connect to Firebase - Done
 7. Change the path where to save the export .csv - Done
 8. Add cost record of the jobs, seeds, spray, fert etc
 9. Add Dark mod
 10. Add search field to filter the fileds on the first screen to quickly find the field
-
-
+11. Add User auth
+12. Add firebase database
+13. Add firebase communication
 
 Ideas:
 1. Connect with Crop Insurance Services: Let users access insurance services to ensure their crops or fields are protected.
