@@ -13,7 +13,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.scrape_gerk"
+    namespace = "com.agritex.agrilog"
     compileSdk = 34
     // Set this to your desired compile SDK version, 33 is a common choice for modern apps
     ndkVersion = "23.1.7779620" // Example NDK version, adjust according to your environment
@@ -29,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.agritex.agrilog"
-        minSdkVersion = 21
+        minSdkVersion = 23
         // Set a minimum SDK version, typically 21 or higher for most modern Flutter apps
         targetSdkVersion = 34 // Set this to your desired target SDK version
         versionCode = 1 // Set this according to your app versioning scheme
