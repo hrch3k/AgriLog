@@ -44,6 +44,9 @@ dependencies:
   csv: ^6.0.0
   permission_handler: ^11.3.1
   firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  flutter_dotenv: ^5.1.0
+  cloud_firestore: ^4.17.5
 
 
 dev_dependencies:
@@ -76,6 +79,8 @@ flutter:
   # Add your app's assets
   assets:
     - assets/icon/ic_launcher.png  # Path to the app icon
+    - assets/logo.png  # Path to the app logo
+    - assets/.env
 
 # Flutter Launcher Icons configuration
 flutter_icons:
