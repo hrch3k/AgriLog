@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'database_helper.dart';
-import 'package:intl/intl.dart';
+import 'firebase_helper.dart'; // Use FirestoreHelper
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_job_screen.dart';
+import 'widgets/job_history_widget.dart'; // Import JobHistoryWidget
 
 class FieldDetailsScreen extends StatefulWidget {
-  final int fieldId; // Pass the field's ID to this screen
+  final String fieldId; // Firestore uses String IDs
 
   FieldDetailsScreen({required this.fieldId});
 
@@ -19,143 +20,164 @@ class _FieldDetailsScreenState extends State<FieldDetailsScreen> {
   final TextEditingController _domaceImeController = TextEditingController();
 
   bool _isLoading = true;
-  List<Map<String, dynamic>> _jobLogs = [];
+  String? _kmgMidId; // Store kmgMidId here
   String _screenTitle = 'Details Screen'; // Default screen title
+  final FirestoreHelper _firestoreHelper = FirestoreHelper(); // Use Firestore
+
+  String? _selectedJob; // For dropdown job selection
+
+  Key _jobHistoryKey = UniqueKey(); // Add this key to trigger a rebuild
+
+  // Job types with corresponding colors
+  final List<Map<String, dynamic>> _jobTypes = [
+    {'job': 'Priprava Zemlje', 'color': Colors.brown},
+    {'job': 'Predsetvena obdelava', 'color': Colors.deepOrangeAccent},
+    {'job': 'Setev', 'color': Colors.green},
+    {'job': 'Dognojevanje', 'color': Colors.orange},
+    {'job': 'Škropljenje', 'color': Colors.blue},
+    {'job': 'Žetev', 'color': Colors.red},
+    {'job': 'Baliranje', 'color': Colors.yellow},
+    {'job': 'Mulčanje', 'color': Colors.teal},
+    {'job': 'Ozelenitev', 'color': Colors.lime},
+    {'job': 'Košnja', 'color': Colors.lightGreen},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _fetchFieldDetails();
-    _fetchJobLogs(); // Fetch job logs when screen initializes
+    _fetchFieldDetails(); // Fetch field data from Firestore
+    _fetchKmgMidId(); // Fetch kmgMidId
   }
 
-  Future<void> _fetchFieldDetails() async {
-    final dbHelper = DatabaseHelper();
-    final db = await dbHelper.database;
-
-    // Fetch the field data by ID
-    final fieldData = await db.query(
-      'parcels',
-      where: 'id = ?',
-      whereArgs: [widget.fieldId],
-    );
-
-    if (fieldData.isNotEmpty) {
+  /// Fetch kmgMidId and set the state once done
+  Future<void> _fetchKmgMidId() async {
+    final kmgMidId = await _firestoreHelper.getLastKmgMid();
+    if (kmgMidId != null) {
       setState(() {
-        _gerkPidController.text = fieldData[0]['gerk_pid'] as String? ?? '';
-        _blokIdController.text = fieldData[0]['blok_id'] as String? ?? '';
-        _m2Controller.text = (fieldData[0]['m2'] as double?).toString() ?? '';
-        _domaceImeController.text = fieldData[0]['domace_ime'] as String? ?? '';
+        _kmgMidId = kmgMidId.toString();
+      });
+    }
+  }
+
+  /// Fetch field details from Firestore
+  Future<void> _fetchFieldDetails() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    int? kmgMidId = await _firestoreHelper.getLastKmgMid();
+    if (kmgMidId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No active KMG MID found for this user.')),
+      );
+      return;
+    }
+
+    var fieldData =
+        await _firestoreHelper.getParcelById(kmgMidId, widget.fieldId);
+
+    if (fieldData != null) {
+      setState(() {
+        _gerkPidController.text = fieldData['gerk_pid']?.toString() ?? '';
+        _blokIdController.text = fieldData['blok_id']?.toString() ?? '';
+        _m2Controller.text = fieldData['m2']?.toString() ?? '';
+        _domaceImeController.text = fieldData['domace_ime']?.toString() ?? '';
         _screenTitle = _domaceImeController.text; // Update the screen title
         _isLoading = false;
       });
     } else {
       setState(() {
-        _isLoading = false; // Stop loading even if no data is found
+        _isLoading = false;
       });
-      // Optionally, show a message if no data is found
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No data found for the provided field ID.')),
       );
     }
   }
 
+  /// Save field details to Firestore
   Future<void> _saveFieldDetails() async {
-    final dbHelper = DatabaseHelper();
-    final db = await dbHelper.database;
+    int? kmgMidId = await _firestoreHelper.getLastKmgMid();
+    if (kmgMidId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No active KMG MID found.')),
+      );
+      return;
+    }
 
-    await db.update(
-      'parcels',
-      {
+    bool exists =
+        await _firestoreHelper.checkParcelExists(kmgMidId, widget.fieldId);
+
+    if (exists) {
+      await _firestoreHelper.updateParcel(kmgMidId, widget.fieldId, {
         'gerk_pid': _gerkPidController.text,
         'blok_id': _blokIdController.text,
         'm2': double.tryParse(_m2Controller.text) ?? 0.0,
         'domace_ime': _domaceImeController.text,
-      },
-      where: 'id = ?',
-      whereArgs: [widget.fieldId],
-    );
+      });
 
-    // Show a SnackBar with a confirmation message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Podatki so shranjeni!')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Data saved successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Document does not exist. Cannot update.')),
+      );
+    }
   }
 
-  Future<void> _fetchJobLogs() async {
-    final dbHelper = DatabaseHelper();
-    final db = await dbHelper.database;
-
-    // Fetch job details for the specific parcel
-    final jobLogs = await db.rawQuery('''
-      SELECT job_details.*, jobs.job_type 
-      FROM job_details 
-      INNER JOIN jobs ON job_details.job_id = jobs.id
-      WHERE jobs.parcel_id = ?
-      ORDER BY job_details.date_time DESC
-    ''', [widget.fieldId]);
-
-    setState(() {
-      _jobLogs = jobLogs;
-    });
-  }
-
-  Future<void> _deleteJob(int jobId) async {
-    final dbHelper = DatabaseHelper();
-    await dbHelper.deleteJob(jobId);
-    _fetchJobLogs(); // Refresh job logs after deletion
-  }
-
-  // Navigate to Add Job Screen and pass the action type
+  /// Navigate to Add Job Screen and pass the necessary parameters
   void _navigateToAddJobScreen(String actionType) async {
-    await Navigator.of(context).push(
+    String? userId = getUserId();
+    int? kmgMidId = await _firestoreHelper.getLastKmgMid();
+
+    if (kmgMidId == null || userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch KMG MID or User ID')),
+      );
+      return;
+    }
+
+    // Wait for the result from AddJobScreen
+    final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AddJobScreen(
+          userId: userId,
+          kmgMid: kmgMidId.toString(),
           parcelId: widget.fieldId,
           actionType: actionType,
         ),
       ),
     );
-    _fetchJobLogs(); // Refresh job logs after returning
+
+    // Check if the result indicates that a job was added, then refresh the job logs
+    if (result == true) {
+      setState(() {
+        _jobHistoryKey =
+            UniqueKey(); // Trigger a rebuild of the JobHistoryWidget
+      });
+    }
   }
 
-  Future<bool?> _showDeleteConfirmation(BuildContext context) async {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Job'),
-          content: Text('Are you sure you want to delete this job?'),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-            ),
-            TextButton(
-              child: Text('Delete'),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-            ),
-          ],
-        );
-      },
-    );
+  // Helper function to get the current user's userId from FirebaseAuth
+  String? getUserId() {
+    User? user = FirebaseAuth.instance.currentUser;
+    return user?.uid;
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Custom back button logic
         Navigator.of(context).pop(true);
-        return false; // Prevent default back button behavior (let custom logic handle it)
+        return false;
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_screenTitle), // Use the dynamic screen title
+          title: Text(_screenTitle),
         ),
         body: _isLoading
             ? Center(child: CircularProgressIndicator())
@@ -167,160 +189,84 @@ class _FieldDetailsScreenState extends State<FieldDetailsScreen> {
                     TextField(
                       controller: _gerkPidController,
                       decoration: InputDecoration(labelText: 'GERK PID'),
-                      readOnly: true, // Makes the TextField read-only
+                      readOnly: true,
                     ),
                     TextField(
                       controller: _blokIdController,
                       decoration: InputDecoration(labelText: 'Blok ID'),
-                      readOnly: true, // Makes the TextField read-only
+                      readOnly: true,
                     ),
                     TextField(
                       controller: _m2Controller,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(labelText: 'm²'),
-                      //readOnly: true, // Makes the TextField read-only
                     ),
                     SizedBox(height: 20),
                     Center(
                       child: ElevatedButton(
                         onPressed: _saveFieldDetails,
-                        child: Text('Shrani'),
+                        child: Text('Save'),
                       ),
                     ),
                     SizedBox(height: 20),
-                    // Optional: Add some space between the button and the divider
-                    Divider(
-                      color: Colors.grey, // Customize the color
-                      thickness: 1.0, // Customize the thickness
-                    ),
-                    SizedBox(height: 20),
-                    // Optional: Add some space after the divider
-                    Wrap(
-                      spacing: 20, // Horizontal spacing between buttons
-                      runSpacing:
-                          20, // Vertical spacing between lines of buttons
+                    Divider(),
+                    Row(
                       children: [
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.brown, // Background color
-                            foregroundColor: Colors.black, // Text color
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedJob,
+                            decoration:
+                                InputDecoration(labelText: 'Select Job'),
+                            items: _jobTypes.map((job) {
+                              return DropdownMenuItem<String>(
+                                value: job['job'],
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 8,
+                                      backgroundColor: job['color'],
+                                    ),
+                                    SizedBox(width: 10),
+                                    Text(job['job']),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _selectedJob = newValue;
+                              });
+                            },
                           ),
-                          onPressed: () =>
-                              _navigateToAddJobScreen('Priprava Zemlje'),
-                          child: Text('Priprava Zemlje'),
                         ),
+                        SizedBox(width: 10),
                         ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green, // Background color
-                            foregroundColor: Colors.black, // Text color
-                          ),
-                          onPressed: () => _navigateToAddJobScreen('Setev'),
-                          child: Text('Setev'),
+                          onPressed: () {
+                            if (_selectedJob != null) {
+                              _navigateToAddJobScreen(_selectedJob!);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Please select a job')),
+                              );
+                            }
+                          },
+                          child: Text('ADD'),
                         ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue, // Background color
-                            foregroundColor: Colors.black, // Text color
-                          ),
-                          onPressed: () =>
-                              _navigateToAddJobScreen('Škropljenje'),
-                          child: Text('Škropljenje'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red, // Background color
-                            foregroundColor: Colors.black, // Text color
-                          ),
-                          onPressed: () => _navigateToAddJobScreen('Žetev'),
-                          child: Text('Žetev'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.yellow, // Background color
-                            foregroundColor: Colors.black, // Text color
-                          ),
-                          onPressed: () => _navigateToAddJobScreen('Baliranje'),
-                          child: Text('Baliranje'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange, // Background color
-                            foregroundColor: Colors.black, // Text color
-                          ),
-                          onPressed: () =>
-                              _navigateToAddJobScreen('Dognojevanje'),
-                          child: Text('Dognojevanje'),
-                        ),
-                        // Add more buttons here if needed
                       ],
                     ),
                     SizedBox(height: 20),
-                    Text(
-                      'Zgodovina',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _jobLogs.length,
-                        itemBuilder: (context, index) {
-                          final job = _jobLogs[index];
-                          return ListTile(
-                            title: Text(
-                              job['detail_type'],
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                    // FutureBuilder to handle async fetching of kmgMidId
+                    _kmgMidId == null
+                        ? CircularProgressIndicator() // Show loader while waiting
+                        : Expanded(
+                            child: JobHistoryWidget(
+                              key:
+                                  _jobHistoryKey, // Add the key here to trigger rebuilds
+                              userId: getUserId()!,
+                              kmgMidId: _kmgMidId!, // Pass the fetched kmgMidId
+                              fieldId: widget.fieldId,
                             ),
-                            subtitle: Text(
-                              job['job_type'] +
-                                  (job['detail_type'] == "Setev"
-                                      ? ' ' +
-                                          ((job['seed_quantity']?.toString() ??
-                                                  '') +
-                                              "kg")
-                                      : job['detail_type'] == "Dognojevanje"
-                                          ? ' ' +
-                                              ((job['fert_quantity']
-                                                          ?.toString() ??
-                                                      '') +
-                                                  "kg")
-                                          : job['detail_type'] == "Škropljenje"
-                                              ? ' ' +
-                                                  ((job['spray_quantity']
-                                                              ?.toString() ??
-                                                          '') +
-                                                      "L")
-                                              : job['detail_type'] ==
-                                                      "Baliranje"
-                                                  ? ' ' +
-                                                      ((job['bales_on_field']
-                                                                  ?.toString() ??
-                                                              '') +
-                                                          " kom")
-                                                  : '') + // Add more conditions as needed
-                                  '\n' +
-                                  'Datum: ' +
-                                  DateFormat('dd.MM.yyyy HH:mm').format(
-                                    DateTime.parse(
-                                      job['date_time'] as String,
-                                    ),
-                                  ),
-                            ),
-                            isThreeLine: true,
-                            trailing: IconButton(
-                              icon: Icon(Icons.close),
-                              color: Colors.red,
-                              onPressed: () async {
-                                bool? confirm =
-                                    await _showDeleteConfirmation(context);
-                                if (confirm == true) {
-                                  await _deleteJob(job['job_id']);
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
                   ],
                 ),
               ),
