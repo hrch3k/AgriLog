@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
-import 'database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class AddJobScreen extends StatefulWidget {
-  final int parcelId;
-  final String actionType;
+  final String userId; // User ID of the logged-in user
+  final String kmgMid; // Dynamic kmg_mid field
+  final String parcelId; // The ID of the specific parcel
+  final String actionType; // The action type for the job
 
-  AddJobScreen({required this.parcelId, required this.actionType});
+  AddJobScreen({
+    required this.userId,
+    required this.kmgMid,
+    required this.parcelId,
+    required this.actionType,
+  });
 
   @override
   _AddJobScreenState createState() => _AddJobScreenState();
 }
 
 class _AddJobScreenState extends State<AddJobScreen> {
-  final List<String> _jobTypes = ['Plug', 'Tiler', 'Riper', 'Disk', 'Mulčanje'];
+  final List<String> _jobTypes = ['Plug', 'Tiler', 'Riper', 'Disk'];
   String? _selectedJobType;
   DateTime _selectedDateTime = DateTime.now();
   final TextEditingController _cultureController = TextEditingController();
@@ -23,6 +30,11 @@ class _AddJobScreenState extends State<AddJobScreen> {
   final TextEditingController _sprayQuantityController =
       TextEditingController();
   final TextEditingController _typeController = TextEditingController();
+  final TextEditingController _sortaController =
+      TextEditingController(); // Add this for Sorta
+
+  final TextEditingController _fertTypeController = TextEditingController();
+  final TextEditingController _sprayTypeController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -40,11 +52,10 @@ class _AddJobScreenState extends State<AddJobScreen> {
       );
       if (pickedTime != null) {
         setState(() {
-          // Fix the order of arguments in DateTime constructor
           _selectedDateTime = DateTime(
-            pickedDate.year, // year first
-            pickedDate.month, // month second
-            pickedDate.day, // day third
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
             pickedTime.hour,
             pickedTime.minute,
           );
@@ -58,13 +69,11 @@ class _AddJobScreenState extends State<AddJobScreen> {
       return;
     }
 
-    final dbHelper = DatabaseHelper();
-    final db = await dbHelper.database;
-
     final isPripravaZemlje = widget.actionType == 'Priprava Zemlje';
     final isSetevOrSimilar = widget.actionType == 'Setev' ||
         widget.actionType == 'Dognojevanje' ||
-        widget.actionType == 'Škropljenje';
+        widget.actionType == 'Škropljenje' ||
+        widget.actionType == 'Ozelenitev';
 
     final jobType = isPripravaZemlje
         ? _selectedJobType
@@ -72,34 +81,49 @@ class _AddJobScreenState extends State<AddJobScreen> {
             ? widget.actionType
             : _typeController.text;
 
-    int jobId = await db.insert('jobs', {
-      'parcel_id': widget.parcelId,
-      'detail_type': widget.actionType,
-      'job_type': jobType,
-      'date_time': _selectedDateTime.toIso8601String(),
-    });
+    try {
+      // Firestore reference to the correct path
+      final firestore = FirebaseFirestore.instance;
 
-    await db.insert('job_details', {
-      'job_id': jobId,
-      'detail_type': widget.actionType,
-      'type': jobType,
-      'culture': _cultureController.text,
-      'seed_quantity': isSetevOrSimilar
-          ? int.tryParse(_seedQuantityController.text) ?? 0
-          : 0,
-      'fert_quantity': isSetevOrSimilar
-          ? int.tryParse(_fertQuantityController.text) ?? 0
-          : 0,
-      'spray_quantity': isSetevOrSimilar
-          ? int.tryParse(_sprayQuantityController.text) ?? 0
-          : 0,
-      'bales_on_field': widget.actionType == 'Baliranje'
-          ? int.tryParse(_quantityController.text) ?? 0
-          : 0,
-      'date_time': _selectedDateTime.toIso8601String(),
-    });
+      // Reference the path: /users/{userId}/kmg_mid/{kmgMid}/parcels/{parcelId}/jobs
+      DocumentReference parcelRef = firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('kmg_mid')
+          .doc(widget.kmgMid)
+          .collection('parcels')
+          .doc(widget.parcelId);
 
-    Navigator.of(context).pop(true);
+      // Consolidate all job details into one document in the "jobs" subcollection
+      await parcelRef.collection('jobs').add({
+        'parcel_id': widget.parcelId,
+        'detail_type': widget.actionType,
+        'job_type': jobType,
+        'culture': _cultureController.text,
+        'sorta': _sortaController.text,
+        'seed_quantity': isSetevOrSimilar
+            ? int.tryParse(_seedQuantityController.text) ?? 0
+            : 0,
+        'fert_quantity': isSetevOrSimilar
+            ? int.tryParse(_fertQuantityController.text) ?? 0
+            : 0,
+        'fert_type': isSetevOrSimilar ? _fertTypeController.text ?? 0 : 0,
+        'spray_quantity': isSetevOrSimilar
+            ? int.tryParse(_sprayQuantityController.text) ?? 0
+            : 0,
+        'spray_type': isSetevOrSimilar ? _sprayTypeController.text ?? 0 : 0,
+        'bales_on_field': widget.actionType == 'Baliranje'
+            ? int.tryParse(_quantityController.text) ?? 0
+            : 0,
+        'date_time': _selectedDateTime.toIso8601String(),
+      });
+
+      // After successful job creation, return true to signal success
+      Navigator.of(context)
+          .pop(true); // This signals back to details_screen.dart
+    } catch (e) {
+      print('Error saving job details: $e');
+    }
   }
 
   Widget _buildTextField(
@@ -131,22 +155,27 @@ class _AddJobScreenState extends State<AddJobScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: _formKey, // Add the Form widget with a GlobalKey
+          key: _formKey,
           child: Column(
             children: [
-              if (widget.actionType == 'Setev') ...[
-                _buildTextField('Kultura', '', _typeController,
+              if (widget.actionType == 'Setev' ||
+                  widget.actionType == 'Ozelenitev') ...[
+                _buildTextField('Kultura', '', _cultureController,
                     isMandatory: true),
+                _buildTextField('Sorta', '', _sortaController,
+                    isMandatory: false),
+                // New Sorta field
                 _buildTextField(
                     'Količina semena', 'kg/ha', _seedQuantityController,
                     isMandatory: true),
-                _buildTextField('Dodano gnojilo', 'NPK, Orea, KAN',
-                    TextEditingController()),
+                _buildTextField(
+                    'Dodano gnojilo', 'NPK, Orea, KAN', _fertTypeController),
                 _buildTextField(
                     'Količina Gnojila', 'kg/ha', _fertQuantityController),
               ],
               if (widget.actionType == 'Dognojevanje') ...[
-                _buildTextField('Gnojilo', 'NPK, Orea, KAN', _typeController,
+                _buildTextField(
+                    'Gnojilo', 'NPK, Orea, KAN', _fertTypeController,
                     isMandatory: true),
                 _buildTextField(
                     'Količina gnojila', 'kg/ha', _fertQuantityController,
@@ -157,7 +186,7 @@ class _AddJobScreenState extends State<AddJobScreen> {
                     isMandatory: true),
               ],
               if (widget.actionType == 'Škropljenje') ...[
-                _buildTextField('Tip Škropiva', '', _typeController,
+                _buildTextField('Tip Škropiva', '', _sprayTypeController,
                     isMandatory: true),
                 _buildTextField(
                     'Količina škropiva', 'L/L', _sprayQuantityController,
