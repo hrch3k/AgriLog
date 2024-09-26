@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'sign_up_screen.dart';
+import 'home_screen.dart'; // Import the home screen with DataScreen
+import 'main.dart'; // Import AuthWrapper
 import 'package:firebase_auth/firebase_auth.dart'; // Import for FirebaseAuthException
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv for environment variables
 
@@ -61,7 +63,14 @@ class _SignInPageState extends State<SignInPage> {
             // If in production and email not verified, show dialog to verify email
             _showEmailNotVerifiedDialog();
           } else {
-            // User is signed in and verified or in dev mode, navigation will be handled by StreamBuilder in main.dart
+            // User is signed in and verified or in dev mode
+            if (mounted) {
+              // Instead of navigating directly to DataScreen, navigate back to AuthWrapper to handle the admin check
+              Navigator.of(context).pushReplacement(MaterialPageRoute(
+                builder: (context) =>
+                    MyApp(), // Re-navigate to the app (AuthWrapper will be called)
+              ));
+            }
           }
         }
       } on FirebaseAuthException catch (e) {
